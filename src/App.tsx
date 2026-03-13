@@ -31,9 +31,9 @@ export interface ExportSettings {
 const App = () => {
   const [modelData, setModelData] = useState<{ name: string; path: string; content: string; extension: string } | null>(null)
   const [modelSettings, setModelSettings] = useState<ModelSettings>({
-    color: '#1C1C1C',
-    roughness: 0.7,
-    metalness: 0.1
+    color: '#404040',
+    roughness: 1,
+    metalness: 0
   })
   const [backgroundSettings, setBackgroundSettings] = useState<BackgroundSettings>({
     color: '#EAB308'

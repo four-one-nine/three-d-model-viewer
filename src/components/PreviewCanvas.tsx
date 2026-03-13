@@ -1,16 +1,8 @@
-import { forwardRef, useImperativeHandle, useRef, useEffect } from 'react'
-import { Canvas, ThreeEvent, useThree as useThreeFiber } from '@react-three/fiber'
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
+import { Canvas, ThreeEvent } from '@react-three/fiber'
+import { AccumulativeShadows, RandomizedLight } from '@react-three/drei'
 import * as THREE from 'three'
-import ViewCube from './ViewCube'
 import type { ModelSettings, BackgroundSettings, ExportSettings } from '../App'
-
-function SetupShadows() {
-  const { gl } = useThreeFiber()
-  useEffect(() => {
-    gl.shadowMap.type = THREE.VSMShadowMap
-  }, [gl])
-  return null
-}
 
 interface PreviewCanvasProps {
   modelData: { name: string; path: string; content: string; extension: string }
@@ -19,33 +11,38 @@ interface PreviewCanvasProps {
   exportSettings: ExportSettings
 }
 
-const Ground = ({ color }: { color: string }) => {
+const Ground = ({ color, visible }: { color: string; visible: boolean }) => {
+  if (!visible) return null
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-      <planeGeometry args={[100, 100]} />
-      <meshStandardMaterial color={color} />
-    </mesh>
+    <AccumulativeShadows frames={100} color={color} colorBlend={1} opacity={0.8} scale={10} position={[0, 0, 0]} alphaTest={0.5}>
+      <RandomizedLight amount={8} radius={10} ambient={0.5} intensity={3} position={[5, 5, -5]} bias={0.001} />
+    </AccumulativeShadows>
   )
 }
 
-function Rotator({ children }: { children: React.ReactNode }) {
+function Rotator({ children, onDragStart, onDragEnd }: { children: React.ReactNode; onDragStart?: () => void; onDragEnd?: () => void }) {
   const groupRef = useRef<THREE.Group>(null)
-  const rotation = useRef({ x: 0, y: 0 })
+  const rotation = useRef(0)
   const dragging = useRef(false)
   const last = useRef({ x: 0, y: 0 })
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     dragging.current = true
+    onDragStart?.()
     last.current = { x: e.clientX, y: e.clientY }
     e.stopPropagation()
   }
 
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
     if (!dragging.current || !groupRef.current) return
-    rotation.current.y += (e.clientX - last.current.x) * 0.01
-    rotation.current.x += (e.clientY - last.current.y) * 0.01
-    groupRef.current.rotation.set(rotation.current.x, rotation.current.y, 0)
+    rotation.current += (e.clientX - last.current.x) * 0.01
+    groupRef.current.rotation.set(0, rotation.current, 0)
     last.current = { x: e.clientX, y: e.clientY }
+  }
+
+  const onPointerUp = () => {
+    dragging.current = false
+    onDragEnd?.()
   }
 
   return (
@@ -53,7 +50,7 @@ function Rotator({ children }: { children: React.ReactNode }) {
       ref={groupRef} 
       onPointerDown={onPointerDown} 
       onPointerMove={onPointerMove}
-      onPointerUp={() => dragging.current = false}
+      onPointerUp={onPointerUp}
       onPointerLeave={() => dragging.current = false}
     >
       {children}
@@ -70,6 +67,7 @@ const PreviewCanvas = forwardRef<PreviewCanvasRef, PreviewCanvasProps>(({
   backgroundSettings
 }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
 
   useImperativeHandle(ref, () => ({
     exportImage: async () => {
@@ -85,24 +83,16 @@ const PreviewCanvas = forwardRef<PreviewCanvasRef, PreviewCanvasProps>(({
         shadows
         camera={{ position: [0, 3, 10], fov: 45 }}
       >
-        <SetupShadows />
         <color attach="background" args={[backgroundSettings.color]} />
         <fog attach="fog" args={[backgroundSettings.color, 10, 50]} />
         
-        <ambientLight intensity={1} />
-        <directionalLight 
-          position={[5, 10, 7]} 
-          intensity={2} 
-          castShadow
-          shadow-mapSize-width={4096}
-          shadow-mapSize-height={4096}
-          shadow-bias={-0.0001}
-          shadow-radius={100}
-        />
+        <ambientLight intensity={1.5} />
         
-        <Ground color={backgroundSettings.color} />
+        <directionalLight position={[5, 10, 7]} intensity={1} />
         
-        <Rotator>
+        <Ground color={backgroundSettings.color} visible={!isDragging} />
+        
+        <Rotator onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)}>
           <mesh position={[0, 1, 0]} castShadow receiveShadow>
             <boxGeometry args={[2, 2, 2]} />
             <meshStandardMaterial 
@@ -113,7 +103,6 @@ const PreviewCanvas = forwardRef<PreviewCanvasRef, PreviewCanvasProps>(({
           </mesh>
         </Rotator>
       </Canvas>
-      <ViewCube />
     </div>
   )
 })

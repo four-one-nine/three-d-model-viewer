@@ -11,6 +11,8 @@ interface ControlPanelProps {
   exportSettings: ExportSettings
   setExportSettings: (settings: ExportSettings) => void
   onExport: () => void
+  onReset: () => void
+  onFlip: () => void
   isExporting: boolean
   hasModel: boolean
 }
@@ -72,6 +74,8 @@ const ControlPanel = ({
   exportSettings,
   setExportSettings,
   onExport,
+  onReset,
+  onFlip,
   isExporting,
   hasModel
 }: ControlPanelProps) => {
@@ -183,6 +187,25 @@ const ControlPanel = ({
             `}
           >
             {isExporting ? 'Exporting...' : 'Export Image'}
+          </button>
+
+          <button
+            onClick={onReset}
+            className="w-full py-3 px-4 rounded-md font-medium text-sm transition-colors bg-surface text-text-secondary hover:bg-surface/80 border border-border"
+          >
+            Load New Model
+          </button>
+
+          <button
+            onClick={onFlip}
+            disabled={!hasModel}
+            className={`w-full py-3 px-4 rounded-md font-medium text-sm transition-colors border border-border ${
+              hasModel
+                ? 'bg-surface text-text-secondary hover:bg-surface/80'
+                : 'bg-surface text-text-secondary cursor-not-allowed'
+            }`}
+          >
+            Flip Model
           </button>
         </div>
       </div>

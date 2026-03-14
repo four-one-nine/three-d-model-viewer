@@ -30,6 +30,7 @@ export interface ExportSettings {
 
 const App = () => {
   const [modelData, setModelData] = useState<{ name: string; path: string; content: string; extension: string } | null>(null)
+  const [flipTrigger, setFlipTrigger] = useState(0)
   const [modelSettings, setModelSettings] = useState<ModelSettings>({
     color: '#404040',
     roughness: 1,
@@ -47,6 +48,14 @@ const App = () => {
 
   const handleFileLoad = useCallback((data: { name: string; path: string; content: string; extension: string }) => {
     setModelData(data)
+  }, [])
+
+  const handleReset = useCallback(() => {
+    setModelData(null)
+  }, [])
+
+  const handleFlip = useCallback(() => {
+    setFlipTrigger(f => f + 1)
   }, [])
 
   const handleExport = useCallback(async () => {
@@ -82,6 +91,8 @@ const App = () => {
           exportSettings={exportSettings}
           setExportSettings={setExportSettings}
           onExport={handleExport}
+          onReset={handleReset}
+          onFlip={handleFlip}
           isExporting={isExporting}
           hasModel={!!modelData}
         />
@@ -96,6 +107,7 @@ const App = () => {
             modelSettings={modelSettings}
             backgroundSettings={backgroundSettings}
             exportSettings={exportSettings}
+            flipTrigger={flipTrigger}
           />
         )}
       </div>

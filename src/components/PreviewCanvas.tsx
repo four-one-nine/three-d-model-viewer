@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState, useMemo } from 'react'
+import { forwardRef, useImperativeHandle, useRef, useState, useMemo, useEffect } from 'react'
 import { Canvas, ThreeEvent, useThree } from '@react-three/fiber'
 import { AccumulativeShadows, RandomizedLight } from '@react-three/drei'
 import * as THREE from 'three'
@@ -11,11 +11,13 @@ interface PreviewCanvasProps {
   modelSettings: ModelSettings
   backgroundSettings: BackgroundSettings
   exportSettings: ExportSettings
+  flipTrigger?: number
 }
 
-function CameraSetup() {
+function CameraSetup({ flipCount = 0 }: { flipCount?: number }) {
   const { camera } = useThree()
-  camera.lookAt(0, 1, 0)
+  const targetY = flipCount % 2 === 0 ? 1 : 0.5
+  camera.lookAt(0, targetY, 0)
   return null
 }
 
@@ -28,7 +30,7 @@ const Ground = ({ color, visible }: { color: string; visible: boolean }) => {
   )
 }
 
-function Model({ modelData, modelSettings }: { modelData: { name: string; path: string; content: string; extension: string }; modelSettings: ModelSettings }) {
+function Model({ modelData, modelSettings, flipCount = 0 }: { modelData: { name: string; path: string; content: string; extension: string }; modelSettings: ModelSettings; flipCount?: number }) {
   const geometry = useMemo(() => {
     try {
       const binary = atob(modelData.content)
@@ -56,27 +58,43 @@ function Model({ modelData, modelSettings }: { modelData: { name: string; path: 
       if (!geom) return null
 
       geom.computeBoundingBox()
-      const box = geom.boundingBox
-      if (box) {
-        const center = new THREE.Vector3()
-        box.getCenter(center)
-        geom.translate(-center.x, -center.y, -center.z)
-        
-        const size = new THREE.Vector3()
-        box.getSize(size)
-        const maxDim = Math.max(size.x, size.y, size.z)
-        const scale = 2 / maxDim
-        geom.scale(scale, scale, scale)
-        
-        geom.translate(0, 1, 0)
+      let box = geom.boundingBox
+      if (!box) return geom
+
+      const size = new THREE.Vector3()
+      box.getSize(size)
+      const maxDim = Math.max(size.x, size.y, size.z)
+      const scale = 2 / maxDim
+      geom.scale(scale, scale, scale)
+
+      geom.computeBoundingBox()
+      box = geom.boundingBox
+      if (!box) return geom
+
+      const center = new THREE.Vector3()
+      box.getCenter(center)
+      geom.translate(-center.x, -center.y, -center.z)
+
+      if (flipCount > 0) {
+        geom.rotateX(flipCount * Math.PI / 2)
       }
+
+      geom.computeBoundingBox()
+      box = geom.boundingBox
+      if (!box) return geom
+
+      box.getCenter(center)
+      geom.translate(-center.x, -center.y, -center.z)
+
+      const centerY = box.max.y - box.min.y
+      geom.translate(0, centerY / 2, 0)
 
       return geom
     } catch (e) {
       console.error('Failed to parse model:', e)
     }
     return null
-  }, [modelData])
+  }, [modelData, flipCount])
 
   if (!geometry) return null
 
@@ -91,11 +109,17 @@ function Model({ modelData, modelSettings }: { modelData: { name: string; path: 
   )
 }
 
-function Rotator({ children, onDragStart, onDragEnd }: { children: React.ReactNode; onDragStart?: () => void; onDragEnd?: () => void }) {
-  const groupRef = useRef<THREE.Group>(null)
-  const rotation = useRef(0)
+function DragHandler({ onDragStart, onDragEnd, children }: { onDragStart?: () => void; onDragEnd?: () => void; children: React.ReactNode }) {
+  const rotation = useRef(Math.PI / 4)
   const dragging = useRef(false)
   const last = useRef({ x: 0, y: 0 })
+  const groupRef = useRef<THREE.Group>(null)
+
+  useEffect(() => {
+    if (groupRef.current) {
+      groupRef.current.rotation.set(0, rotation.current, 0)
+    }
+  }, [])
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     dragging.current = true
@@ -117,15 +141,20 @@ function Rotator({ children, onDragStart, onDragEnd }: { children: React.ReactNo
   }
 
   return (
-    <group 
-      ref={groupRef} 
-      onPointerDown={onPointerDown} 
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerLeave={() => dragging.current = false}
-    >
-      {children}
-    </group>
+    <>
+      <mesh 
+        position={[0, 0, -5]} 
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+      >
+        <planeGeometry args={[100, 100]} />
+        <meshBasicMaterial visible={false} />
+      </mesh>
+      <group ref={groupRef}>
+        {children}
+      </group>
+    </>
   )
 }
 
@@ -136,10 +165,18 @@ export interface PreviewCanvasRef {
 const PreviewCanvas = forwardRef<PreviewCanvasRef, PreviewCanvasProps>(({
   modelData,
   modelSettings,
-  backgroundSettings
+  backgroundSettings,
+  flipTrigger = 0
 }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [flipCount, setFlipCount] = useState(0)
+
+  useEffect(() => {
+    if (flipTrigger > 0) {
+      setFlipCount(c => (c + 1) % 4)
+    }
+  }, [flipTrigger])
 
   useImperativeHandle(ref, () => ({
     exportImage: async () => {
@@ -153,9 +190,9 @@ const PreviewCanvas = forwardRef<PreviewCanvasRef, PreviewCanvasProps>(({
     <div className="h-full w-full relative" ref={containerRef}>
       <Canvas 
         shadows
-        camera={{ position: [0, 3, 10], fov: 45 }}
+        camera={{ position: [0, 3, 4], fov: 45 }}
       >
-        <CameraSetup />
+        <CameraSetup flipCount={flipCount} />
         <color attach="background" args={[backgroundSettings.color]} />
         <fog attach="fog" args={[backgroundSettings.color, 10, 50]} />
         
@@ -165,9 +202,9 @@ const PreviewCanvas = forwardRef<PreviewCanvasRef, PreviewCanvasProps>(({
         
         <Ground color={backgroundSettings.color} visible={!isDragging} />
         
-        <Rotator onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)}>
+        <DragHandler onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)}>
           {modelData.content ? (
-            <Model modelData={modelData} modelSettings={modelSettings} />
+            <Model modelData={modelData} modelSettings={modelSettings} flipCount={flipCount} />
           ) : (
             <mesh position={[0, 1, 0]} castShadow receiveShadow>
               <boxGeometry args={[2, 2, 2]} />
@@ -178,7 +215,7 @@ const PreviewCanvas = forwardRef<PreviewCanvasRef, PreviewCanvasProps>(({
               />
             </mesh>
           )}
-        </Rotator>
+        </DragHandler>
       </Canvas>
     </div>
   )

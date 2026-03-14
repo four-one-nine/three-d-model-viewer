@@ -37,7 +37,7 @@ const App = () => {
     metalness: 0
   })
   const [backgroundSettings, setBackgroundSettings] = useState<BackgroundSettings>({
-    color: '#EAB308'
+    color: '#B1AD38'
   })
   const [exportSettings, setExportSettings] = useState<ExportSettings>({
     aspectRatio: '16:9',

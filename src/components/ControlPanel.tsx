@@ -88,38 +88,39 @@ const ControlPanel = ({
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-text-primary">Background</h3>
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-text-secondary">Color</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={backgroundSettings.color}
-                onChange={(e) => setBackgroundSettings({ ...backgroundSettings, color: e.target.value })}
-              />
-              <span className="text-xs text-text-secondary font-mono">
-                {backgroundSettings.color.toUpperCase()}
-              </span>
+          <h3 className="text-sm font-medium text-text-primary">Colors</h3>
+          <div className="flex gap-4">
+            <div className="flex-1 space-y-2">
+              <label className="text-xs text-text-secondary">Background</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={backgroundSettings.color}
+                  onChange={(e) => setBackgroundSettings({ ...backgroundSettings, color: e.target.value })}
+                />
+                <span className="text-xs text-text-secondary font-mono">
+                  {backgroundSettings.color.toUpperCase()}
+                </span>
+              </div>
+            </div>
+            <div className="flex-1 space-y-2">
+              <label className="text-xs text-text-secondary">Model</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={modelSettings.color}
+                  onChange={(e) => setModelSettings({ ...modelSettings, color: e.target.value })}
+                />
+                <span className="text-xs text-text-secondary font-mono">
+                  {modelSettings.color.toUpperCase()}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-text-primary">Model</h3>
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-text-secondary">Color</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={modelSettings.color}
-                onChange={(e) => setModelSettings({ ...modelSettings, color: e.target.value })}
-              />
-              <span className="text-xs text-text-secondary font-mono">
-                {modelSettings.color.toUpperCase()}
-              </span>
-            </div>
-          </div>
-
+          <h3 className="text-sm font-medium text-text-primary">Model Properties</h3>
           <SliderControl
             label="Roughness"
             value={modelSettings.roughness}
@@ -131,6 +132,18 @@ const ControlPanel = ({
             value={modelSettings.metalness}
             onChange={(v) => setModelSettings({ ...modelSettings, metalness: v })}
           />
+
+          <button
+            onClick={onFlip}
+            disabled={!hasModel}
+            className={`w-full py-3 px-4 rounded-md font-medium text-sm transition-colors border border-border ${
+              hasModel
+                ? 'bg-surface text-text-secondary hover:bg-surface/80'
+                : 'bg-surface text-text-secondary cursor-not-allowed'
+            }`}
+          >
+            Flip Model
+          </button>
         </div>
 
         <div className="space-y-4">
@@ -194,18 +207,6 @@ const ControlPanel = ({
             className="w-full py-3 px-4 rounded-md font-medium text-sm transition-colors bg-surface text-text-secondary hover:bg-surface/80 border border-border"
           >
             Load New Model
-          </button>
-
-          <button
-            onClick={onFlip}
-            disabled={!hasModel}
-            className={`w-full py-3 px-4 rounded-md font-medium text-sm transition-colors border border-border ${
-              hasModel
-                ? 'bg-surface text-text-secondary hover:bg-surface/80'
-                : 'bg-surface text-text-secondary cursor-not-allowed'
-            }`}
-          >
-            Flip Model
           </button>
         </div>
       </div>

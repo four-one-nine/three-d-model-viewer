@@ -14,10 +14,12 @@ interface PreviewCanvasProps {
   flipTrigger?: number
 }
 
-function CameraSetup({ flipCount = 0 }: { flipCount?: number }) {
+function CameraSetup({ modelHeight = 2, flipCount = 0 }: { modelHeight?: number; flipCount?: number }) {
   const { camera } = useThree()
-  const targetY = flipCount % 2 === 0 ? 1 : 0.5
-  camera.lookAt(0, targetY, 0)
+  const distance = modelHeight * 2
+  const centerY = flipCount % 2 === 0 ? modelHeight / 2 : modelHeight * 0.25
+  camera.position.set(0, distance * 0.6, distance)
+  camera.lookAt(0, centerY, 0)
   return null
 }
 
@@ -192,7 +194,7 @@ const PreviewCanvas = forwardRef<PreviewCanvasRef, PreviewCanvasProps>(({
         shadows
         camera={{ position: [0, 3, 4], fov: 45 }}
       >
-        <CameraSetup flipCount={flipCount} />
+        <CameraSetup modelHeight={flipCount % 2 === 0 ? 2 : 1.5} flipCount={flipCount} />
         <color attach="background" args={[backgroundSettings.color]} />
         <fog attach="fog" args={[backgroundSettings.color, 10, 50]} />
         

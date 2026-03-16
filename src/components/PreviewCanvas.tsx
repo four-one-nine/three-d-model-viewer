@@ -4,6 +4,7 @@ import { AccumulativeShadows, RandomizedLight } from '@react-three/drei'
 import * as THREE from 'three'
 import { STLLoader } from 'three-stdlib'
 import { OBJLoader } from 'three-stdlib'
+import { ThreeMFLoader } from 'three/examples/jsm/loaders/3MFLoader.js'
 import type { ModelSettings, BackgroundSettings, ExportSettings } from '../App'
 
 interface PreviewCanvasProps {
@@ -14,25 +15,39 @@ interface PreviewCanvasProps {
   flipTrigger?: number
 }
 
-function CameraSetup({ modelHeight = 2, flipCount = 0 }: { modelHeight?: number; flipCount?: number }) {
+function CameraSetup({ modelHeight = 2, modelWidth = 2, modelCenterY = 1 }: { modelHeight?: number; modelWidth?: number; modelCenterY?: number }) {
   const { camera } = useThree()
-  const distance = modelHeight * 2
-  const centerY = flipCount % 2 === 0 ? modelHeight / 2 : modelHeight * 0.25
-  camera.position.set(0, distance * 0.6, distance)
-  camera.lookAt(0, centerY, 0)
+  const yPos = modelHeight * 2
+  const distance = modelWidth * 2
+  camera.position.set(0, yPos, distance)
+  camera.lookAt(0, modelCenterY, 0)
   return null
 }
 
-const Ground = ({ color, visible }: { color: string; visible: boolean }) => {
+function ExportHelper({ forwardedRef }: { forwardedRef: any }) {
+  const { gl, scene, camera } = useThree()
+  
+  useImperativeHandle(forwardedRef, () => ({
+    exportImage: async () => {
+      await new Promise(resolve => setTimeout(resolve, 500))
+      gl.render(scene, camera)
+      return gl.domElement.toDataURL('image/png').replace('data:image/png;base64,', '')
+    }
+  }))
+  
+  return null
+}
+
+const Ground = ({ color, visible, resetKey }: { color: string; visible: boolean; resetKey?: number }) => {
   if (!visible) return null
   return (
-    <AccumulativeShadows frames={100} color={color} colorBlend={1} opacity={0.8} scale={10} position={[0, 0, 0]} alphaTest={0.5}>
+    <AccumulativeShadows key={resetKey} temporal frames={30} color={color} colorBlend={1} opacity={0.8} scale={10} position={[0, 0, 0]} alphaTest={0.5}>
       <RandomizedLight amount={8} radius={10} ambient={0.5} intensity={3} position={[5, 5, -5]} bias={0.001} />
     </AccumulativeShadows>
   )
 }
 
-function Model({ modelData, modelSettings, flipCount = 0 }: { modelData: { name: string; path: string; content: string; extension: string }; modelSettings: ModelSettings; flipCount?: number }) {
+function Model({ modelData, modelSettings, flipCount = 0, onDimensionsChange, onCenterChange }: { modelData: { name: string; path: string; content: string; extension: string }; modelSettings: ModelSettings; flipCount?: number; onDimensionsChange?: (height: number, width: number) => void; onCenterChange?: (centerY: number) => void }) {
   const geometry = useMemo(() => {
     try {
       const binary = atob(modelData.content)
@@ -55,10 +70,20 @@ function Model({ modelData, modelSettings, flipCount = 0 }: { modelData: { name:
             geom = child.geometry.clone()
           }
         })
+      } else if (modelData.extension === '3mf') {
+        const loader = new ThreeMFLoader()
+        const obj = loader.parse(bytes.buffer)
+        
+        obj.traverse((child) => {
+          if (child instanceof THREE.Mesh && !geom) {
+            geom = child.geometry
+          }
+        })
       }
 
       if (!geom) return null
 
+      geom.computeVertexNormals()
       geom.computeBoundingBox()
       let box = geom.boundingBox
       if (!box) return geom
@@ -98,6 +123,25 @@ function Model({ modelData, modelSettings, flipCount = 0 }: { modelData: { name:
     return null
   }, [modelData, flipCount])
 
+  useEffect(() => {
+    if (geometry) {
+      geometry.computeBoundingBox()
+      const box = geometry.boundingBox
+      if (box) {
+        const height = box.max.y - box.min.y
+        const width = Math.max(box.max.x - box.min.x, box.max.z - box.min.z)
+        const centerY = (box.max.y + box.min.y) / 2
+        
+        if (onDimensionsChange) {
+          onDimensionsChange(height || 2, width || 2)
+        }
+        if (onCenterChange) {
+          onCenterChange(centerY || 1)
+        }
+      }
+    }
+  }, [geometry, onDimensionsChange, onCenterChange])
+
   if (!geometry) return null
 
   const material = new THREE.MeshStandardMaterial({
@@ -111,7 +155,7 @@ function Model({ modelData, modelSettings, flipCount = 0 }: { modelData: { name:
   )
 }
 
-function DragHandler({ onDragStart, onDragEnd, children }: { onDragStart?: () => void; onDragEnd?: () => void; children: React.ReactNode }) {
+function DragHandler({ onDragStart, onDragEnd, children }: { onDragStart?: () => void; onDragEnd?: () => void; children?: React.ReactNode }) {
   const rotation = useRef(Math.PI / 4)
   const dragging = useRef(false)
   const last = useRef({ x: 0, y: 0 })
@@ -171,30 +215,53 @@ const PreviewCanvas = forwardRef<PreviewCanvasRef, PreviewCanvasProps>(({
   flipTrigger = 0
 }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [isDragging, setIsDragging] = useState(false)
   const [flipCount, setFlipCount] = useState(0)
+  const [shadowKey, setShadowKey] = useState(0)
+  const [modelHeight, setModelHeight] = useState(2)
+  const [modelWidth, setModelWidth] = useState(2)
+  const [modelCenterY, setModelCenterY] = useState(1)
+
+  const handleDimensionsChange = (height: number, width: number) => {
+    setModelHeight(height)
+    setModelWidth(width)
+  }
+
+  const handleCenterChange = (centerY: number) => {
+    setModelCenterY(centerY)
+  }
+
+  useEffect(() => {
+    setModelHeight(2)
+    setModelWidth(2)
+    setModelCenterY(1)
+  }, [modelData.content])
 
   useEffect(() => {
     if (flipTrigger > 0) {
       setFlipCount(c => (c + 1) % 4)
+      setShadowKey(k => k + 1)
     }
   }, [flipTrigger])
 
-  useImperativeHandle(ref, () => ({
-    exportImage: async () => {
-      const canvas = containerRef.current?.querySelector('canvas')
-      if (!canvas) return ''
-      return canvas.toDataURL('image/png').replace('data:image/png;base64,', '')
+  const cameraHeight = useMemo(() => {
+    const aspectRatio = modelWidth / modelHeight
+    if (aspectRatio > 2) {
+      return modelHeight * 2
     }
-  }))
+    return modelHeight
+  }, [modelHeight, modelWidth])
 
   return (
     <div className="h-full w-full relative" ref={containerRef}>
       <Canvas 
         shadows
         camera={{ position: [0, 3, 4], fov: 45 }}
+        gl={{
+          preserveDrawingBuffer: true
+        }}
       >
-        <CameraSetup modelHeight={flipCount % 2 === 0 ? 2 : 1.5} flipCount={flipCount} />
+        <ExportHelper forwardedRef={ref} />
+        <CameraSetup modelHeight={cameraHeight} modelWidth={modelWidth} modelCenterY={modelCenterY} />
         <color attach="background" args={[backgroundSettings.color]} />
         <fog attach="fog" args={[backgroundSettings.color, 10, 50]} />
         
@@ -202,11 +269,11 @@ const PreviewCanvas = forwardRef<PreviewCanvasRef, PreviewCanvasProps>(({
         
         <directionalLight position={[5, 10, 7]} intensity={1} />
         
-        <Ground color={backgroundSettings.color} visible={!isDragging} />
+        <Ground color={backgroundSettings.color} visible={true} resetKey={shadowKey} />
         
-        <DragHandler onDragStart={() => setIsDragging(true)} onDragEnd={() => setIsDragging(false)}>
+        <DragHandler onDragEnd={() => setShadowKey(k => k + 1)}>
           {modelData.content ? (
-            <Model modelData={modelData} modelSettings={modelSettings} flipCount={flipCount} />
+            <Model modelData={modelData} modelSettings={modelSettings} flipCount={flipCount} onDimensionsChange={handleDimensionsChange} onCenterChange={handleCenterChange} />
           ) : (
             <mesh position={[0, 1, 0]} castShadow receiveShadow>
               <boxGeometry args={[2, 2, 2]} />

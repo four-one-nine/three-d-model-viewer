@@ -62,18 +62,37 @@ const App = () => {
     if (!canvasRef.current || !modelData) return
 
     setIsExporting(true)
+    
     try {
+      await new Promise(resolve => setTimeout(resolve, 100))
       const base64Data = await canvasRef.current.exportImage()
+      console.log('Exported image length:', base64Data.length)
+      
+      if (base64Data.length < 1000) {
+        alert('Export failed: Image too small or empty')
+        setIsExporting(false)
+        return
+      }
       
       const baseName = modelData.name.replace(/\.[^/.]+$/, '')
       const resolution = exportSettings.resolution
       const fileName = `${baseName}_${resolution}.png`
 
       if (window.electronAPI) {
+        console.log('Using electron API to save file')
         const defaultPath = modelData.path.replace(/[^/\\]+$/, '') + fileName
-        await window.electronAPI.saveFile(base64Data, defaultPath)
+        const result = await window.electronAPI.saveFile(base64Data, defaultPath)
+        console.log('Save result:', result)
+      } else {
+        console.log('Using browser download fallback')
+        const link = document.createElement('a')
+        link.href = 'data:image/png;base64,' + base64Data
+        link.download = fileName
+        link.click()
       }
     } catch (error) {
+      console.error('Export failed:', error)
+      alert('Export failed: ' + error)
       console.error('Export failed:', error)
     } finally {
       setIsExporting(false)

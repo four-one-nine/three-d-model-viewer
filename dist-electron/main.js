@@ -1,83 +1,62 @@
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
-const __filename$1 = fileURLToPath(import.meta.url);
-const __dirname$1 = path.dirname(__filename$1);
-let mainWindow = null;
-const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
-function createWindow() {
-  mainWindow = new BrowserWindow({
+import { app as o, BrowserWindow as d, ipcMain as r, dialog as h } from "electron";
+import i from "path";
+import m from "fs";
+import { fileURLToPath as p } from "url";
+const w = p(import.meta.url), f = i.dirname(w);
+let e = null;
+const u = process.env.NODE_ENV === "development" || !o.isPackaged;
+function c() {
+  e = new d({
     width: 1200,
     height: 800,
     minWidth: 900,
     minHeight: 600,
     webPreferences: {
-      preload: path.join(__dirname$1, "preload.js"),
-      contextIsolation: true,
-      nodeIntegration: false
+      preload: i.join(f, "preload.js"),
+      contextIsolation: !0,
+      nodeIntegration: !1
     },
     backgroundColor: "#18181B",
-    show: false
-  });
-  mainWindow.once("ready-to-show", () => {
-    mainWindow == null ? void 0 : mainWindow.show();
-  });
-  if (isDev) {
-    mainWindow.loadURL("http://localhost:5173");
-    mainWindow.webContents.openDevTools();
-  } else {
-    mainWindow.loadFile(path.join(__dirname$1, "../dist/index.html"));
-  }
+    show: !1
+  }), e.once("ready-to-show", () => {
+    e == null || e.show();
+  }), u ? (e.loadURL("http://localhost:5173"), e.webContents.openDevTools()) : e.loadFile(i.join(f, "../dist/index.html"));
 }
-app.whenReady().then(() => {
-  createWindow();
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+o.whenReady().then(() => {
+  c(), o.on("activate", () => {
+    d.getAllWindows().length === 0 && c();
   });
 });
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+o.on("window-all-closed", () => {
+  process.platform !== "darwin" && o.quit();
 });
-ipcMain.handle("open-file-dialog", async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
+r.handle("open-file-dialog", async () => {
+  const l = await h.showOpenDialog(e, {
     properties: ["openFile"],
     filters: [
       { name: "3D Models", extensions: ["3mf", "stl", "obj"] }
     ]
   });
-  if (result.canceled || result.filePaths.length === 0) {
+  if (l.canceled || l.filePaths.length === 0)
     return null;
-  }
-  const filePath = result.filePaths[0];
-  const fileContent = fs.readFileSync(filePath);
-  const fileName = path.basename(filePath);
-  const fileExt = path.extname(filePath).toLowerCase();
+  const n = l.filePaths[0], a = m.readFileSync(n), t = i.basename(n), s = i.extname(n).toLowerCase();
   return {
-    name: fileName,
-    path: filePath,
-    content: fileContent.toString("base64"),
-    extension: fileExt.slice(1)
+    name: t,
+    path: n,
+    content: a.toString("base64"),
+    extension: s.slice(1)
   };
 });
-ipcMain.handle("save-file", async (_event, { data, defaultPath }) => {
-  const result = await dialog.showSaveDialog(mainWindow, {
-    defaultPath,
+r.handle("save-file", async (l, { data: n, defaultPath: a }) => {
+  const t = await h.showSaveDialog(e, {
+    defaultPath: a,
     filters: [
       { name: "PNG Image", extensions: ["png"] }
     ]
   });
-  if (result.canceled || !result.filePath) {
+  if (t.canceled || !t.filePath)
     return null;
-  }
-  const buffer = Buffer.from(data, "base64");
-  fs.writeFileSync(result.filePath, buffer);
-  return result.filePath;
+  const s = Buffer.from(n, "base64");
+  return m.writeFileSync(t.filePath, s), t.filePath;
 });
-ipcMain.handle("get-file-path", async () => {
-  return null;
-});
+r.handle("get-file-path", async () => null);

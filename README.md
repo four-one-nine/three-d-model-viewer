@@ -2,7 +2,7 @@
 
 A cross-platform desktop application for viewing 3D models and exporting them as images with automatic shadows and lighting.
 
-![3D Model Viewer](https://via.placeholder.com/800x450?text=3D+Model+Viewer)
+![3D Model Viewer
 
 ## Features
 

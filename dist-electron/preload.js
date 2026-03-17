@@ -1,9 +1,10 @@
-const { contextBridge: l, ipcRenderer: e } = require("electron");
-l.exposeInMainWorld("electronAPI", {
+const { contextBridge: a, ipcRenderer: e } = require("electron");
+a.exposeInMainWorld("electronAPI", {
   openFileDialog: () => e.invoke("open-file-dialog"),
-  saveFile: (i, n) => e.invoke("save-file", { data: i, defaultPath: n }),
+  saveFile: (i, o, n = !1, l = 0) => e.invoke("save-file", { data: i, defaultPath: o, exportMode: n, rotation: l }),
   getFilePath: () => e.invoke("get-file-path"),
+  quitApp: () => e.invoke("quit-app"),
   onLoadInitialFile: (i) => {
-    e.on("load-initial-file", (n, o) => i(o));
+    e.on("load-initial-file", (o, n) => i(n));
   }
 });

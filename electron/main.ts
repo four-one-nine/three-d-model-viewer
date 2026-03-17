@@ -16,14 +16,17 @@ const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
 const validExtensions = ['3mf', 'stl', 'obj']
 
-let autoExport = false
+let autoExportMode: 'none' | 'single' | 'all' = 'none'
 
-function getAutoExportFlag(): boolean {
+function getAutoExportMode(): 'none' | 'single' | 'all' {
   const args = process.argv.slice(isDev ? 2 : 1)
-  console.log('getAutoExportFlag args:', args)
-  const result = args.includes('-e') || args.includes('--export')
-  console.log('getAutoExportFlag result:', result)
-  return result
+  if (args.includes('-a') || args.includes('--all')) {
+    return 'all'
+  }
+  if (args.includes('-e') || args.includes('--export')) {
+    return 'single'
+  }
+  return 'none'
 }
 
 function getFilePathFromArgs(): string | null {
@@ -63,8 +66,8 @@ function createWindow() {
   })
 
   const initialFilePath = getFilePathFromArgs()
-  autoExport = getAutoExportFlag()
-  console.log('createWindow: autoExport =', autoExport)
+  autoExportMode = getAutoExportMode()
+  console.log('createWindow: autoExportMode =', autoExportMode)
   
   if (isDev) {
     console.log('createWindow: isDev mode')
@@ -78,9 +81,9 @@ function createWindow() {
       // Encode the file path as a URL parameter
       const encodedPath = Buffer.from(initialFilePath).toString('base64')
       const query: Record<string, string> = { file: encodedPath }
-      if (autoExport) {
+      if (autoExportMode !== 'none') {
         console.log('createWindow: adding export flag')
-        query.export = 'true'
+        query.export = autoExportMode
       }
       console.log('createWindow: loading with query:', query)
       mainWindow.loadFile(indexPath, { query })
@@ -135,7 +138,25 @@ ipcMain.handle('open-file-dialog', async () => {
   }
 })
 
-ipcMain.handle('save-file', async (_event, { data, defaultPath }) => {
+ipcMain.handle('save-file', async (_event, { data, defaultPath, exportMode, rotation }) => {
+  console.log('save-file called with exportMode:', exportMode, 'rotation:', rotation)
+  if (exportMode === 'single' || exportMode === 'all') {
+    // Save directly without dialog
+    const buffer = Buffer.from(data, 'base64')
+    
+    if (exportMode === 'single') {
+      fs.writeFileSync(defaultPath, buffer)
+      console.log('Auto-exported to:', defaultPath)
+      return defaultPath
+    } else if (exportMode === 'all') {
+      const basePath = defaultPath.replace('.png', '')
+      const fileName = `${basePath}_rot${rotation}.png`
+      fs.writeFileSync(fileName, buffer)
+      console.log('Auto-exported to:', fileName)
+      return fileName
+    }
+  }
+  
   const result = await dialog.showSaveDialog(mainWindow!, {
     defaultPath,
     filters: [
@@ -173,4 +194,9 @@ ipcMain.handle('get-file-path', async () => {
     console.error('Failed to load file:', err)
     return null
   }
+})
+
+ipcMain.handle('quit-app', () => {
+  console.log('Quit requested')
+  app.quit()
 })

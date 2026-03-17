@@ -7,7 +7,8 @@ declare global {
   interface Window {
     electronAPI?: {
       openFileDialog: () => Promise<{ name: string; path: string; content: string; extension: string } | null>
-      saveFile: (data: string, defaultPath: string) => Promise<string | null>
+      saveFile: (data: string, defaultPath: string, exportMode?: 'single' | 'all' | false, rotation?: number) => Promise<string | null>
+      quitApp: () => Promise<void>
       getFilePath: () => Promise<{ name: string; path: string; content: string; extension: string } | null>
       onLoadInitialFile: (callback: (fileData: { name: string; path: string; content: string; extension: string } | null) => void) => void
     }
@@ -61,7 +62,7 @@ const App = () => {
     setFlipTrigger(f => f + 1)
   }, [])
 
-  const handleExport = useCallback(async (isAutoExport = false, exportData?: { name: string; path: string; content: string; extension: string }) => {
+  const handleExport = useCallback(async (isAutoExport = false, exportData?: { name: string; path: string; content: string; extension: string }, rotation = 0) => {
     const dataToUse = exportData || modelData
     if (!canvasRef.current || !dataToUse) {
       console.log('handleExport: no data, modelData:', !!modelData, 'exportData:', !!exportData)
@@ -82,13 +83,14 @@ const App = () => {
       }
       
       const baseName = dataToUse.name.replace(/\.[^/.]+$/, '')
-      const resolution = isAutoExport ? '1920x1440' : exportSettings.resolution
+      const resolution = '1920x1440'
       const fileName = `${baseName}_${resolution}.png`
 
       if (window.electronAPI) {
         console.log('Using electron API to save file')
         const defaultPath = dataToUse.path.replace(/[^/\\]+$/, '') + fileName
-        const result = await window.electronAPI.saveFile(base64Data, defaultPath)
+        const exportMode = isAutoExport ? (rotation > 0 ? 'all' : 'single') : false
+        const result = await window.electronAPI.saveFile(base64Data, defaultPath, exportMode, rotation)
         console.log('Save result:', result)
       } else {
         console.log('Using browser download fallback')
@@ -110,18 +112,41 @@ const App = () => {
     // Check for auto-export flag
     const params = new URLSearchParams(window.location.search)
     console.log('URL search:', window.location.search)
-    console.log('export param:', params.get('export'))
-    const shouldExport = params.get('export') === 'true'
-    console.log('shouldExport:', shouldExport)
+    const exportMode = params.get('export')
+    console.log('export mode:', exportMode)
     
-    if (shouldExport && window.electronAPI) {
+    const isSingleExport = exportMode === 'single'
+    const isAllExport = exportMode === 'all'
+    
+    if ((isSingleExport || isAllExport) && window.electronAPI) {
       window.electronAPI.getFilePath().then((fileData) => {
         if (fileData) {
           setModelData(fileData)
-          // Trigger export after model loads - pass data directly
-          setTimeout(() => {
-            handleExport(true, fileData)
-          }, 2000)
+          
+          if (isSingleExport) {
+            // Single export - wait for model to load then export
+            setTimeout(async () => {
+              await handleExport(true, fileData, 0)
+              // Quit after export
+              window.electronAPI?.quitApp()
+            }, 2000)
+          } else if (isAllExport) {
+            // All exports - export 4 images with different rotations
+            const doExport = async () => {
+              for (let rotation = 0; rotation < 4; rotation++) {
+                if (rotation > 0) {
+                  // Trigger flip
+                  setFlipTrigger(f => f + 1)
+                  // Wait for flip to complete
+                  await new Promise(resolve => setTimeout(resolve, 1500))
+                }
+                await handleExport(true, fileData, rotation)
+              }
+              // Quit after all exports
+              window.electronAPI?.quitApp()
+            }
+            setTimeout(doExport, 2000)
+          }
         }
       })
     } else if (window.electronAPI) {

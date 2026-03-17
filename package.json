@@ -55,7 +55,14 @@
     ],
     "win": {
       "target": [
-        "nsis"
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
       ]
     },
     "nsis": {
@@ -65,12 +72,15 @@
     "mac": {
       "target": [
         "dmg"
-      ]
+      ],
+      "category": "public.app-category.graphics-design"
     },
     "linux": {
       "target": [
         "AppImage"
-      ]
-    }
+      ],
+      "category": "Graphics"
+    },
+    "publish": null
   }
 }

@@ -51,11 +51,13 @@
     },
     "files": [
       "dist/**/*",
-      "dist-electron/**/*"
+      "dist-electron/**/*",
+      "node_modules/electron/dist/**/*"
     ],
+    "extraResources": [],
     "win": {
       "target": [
-        "dir"
+        "portable"
       ]
     },
     "mac": {
@@ -70,8 +72,6 @@
       ],
       "category": "Graphics"
     },
-    "publish": null,
-    "electronDist": "node_modules/electron/dist",
-    "electronVersion": "33.4.11"
+    "publish": null
   }
 }

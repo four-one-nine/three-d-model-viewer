@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import FileUpload from './components/FileUpload'
 import PreviewCanvas from './components/PreviewCanvas'
 import ControlPanel from './components/ControlPanel'
@@ -8,7 +8,8 @@ declare global {
     electronAPI?: {
       openFileDialog: () => Promise<{ name: string; path: string; content: string; extension: string } | null>
       saveFile: (data: string, defaultPath: string) => Promise<string | null>
-      getFilePath: () => Promise<string | null>
+      getFilePath: () => Promise<{ name: string; path: string; content: string; extension: string } | null>
+      onLoadInitialFile: (callback: (fileData: { name: string; path: string; content: string; extension: string } | null) => void) => void
     }
   }
 }
@@ -29,6 +30,8 @@ export interface ExportSettings {
 }
 
 const App = () => {
+  console.log('=== APP RENDERING ===')
+  console.log('search:', window.location.search)
   const [modelData, setModelData] = useState<{ name: string; path: string; content: string; extension: string } | null>(null)
   const [flipTrigger, setFlipTrigger] = useState(0)
   const [modelSettings, setModelSettings] = useState<ModelSettings>({
@@ -58,8 +61,12 @@ const App = () => {
     setFlipTrigger(f => f + 1)
   }, [])
 
-  const handleExport = useCallback(async () => {
-    if (!canvasRef.current || !modelData) return
+  const handleExport = useCallback(async (isAutoExport = false, exportData?: { name: string; path: string; content: string; extension: string }) => {
+    const dataToUse = exportData || modelData
+    if (!canvasRef.current || !dataToUse) {
+      console.log('handleExport: no data, modelData:', !!modelData, 'exportData:', !!exportData)
+      return
+    }
 
     setIsExporting(true)
     
@@ -74,13 +81,13 @@ const App = () => {
         return
       }
       
-      const baseName = modelData.name.replace(/\.[^/.]+$/, '')
-      const resolution = exportSettings.resolution
+      const baseName = dataToUse.name.replace(/\.[^/.]+$/, '')
+      const resolution = isAutoExport ? '1920x1440' : exportSettings.resolution
       const fileName = `${baseName}_${resolution}.png`
 
       if (window.electronAPI) {
         console.log('Using electron API to save file')
-        const defaultPath = modelData.path.replace(/[^/\\]+$/, '') + fileName
+        const defaultPath = dataToUse.path.replace(/[^/\\]+$/, '') + fileName
         const result = await window.electronAPI.saveFile(base64Data, defaultPath)
         console.log('Save result:', result)
       } else {
@@ -98,6 +105,33 @@ const App = () => {
       setIsExporting(false)
     }
   }, [modelData, exportSettings])
+
+  useEffect(() => {
+    // Check for auto-export flag
+    const params = new URLSearchParams(window.location.search)
+    console.log('URL search:', window.location.search)
+    console.log('export param:', params.get('export'))
+    const shouldExport = params.get('export') === 'true'
+    console.log('shouldExport:', shouldExport)
+    
+    if (shouldExport && window.electronAPI) {
+      window.electronAPI.getFilePath().then((fileData) => {
+        if (fileData) {
+          setModelData(fileData)
+          // Trigger export after model loads - pass data directly
+          setTimeout(() => {
+            handleExport(true, fileData)
+          }, 2000)
+        }
+      })
+    } else if (window.electronAPI) {
+      window.electronAPI.getFilePath().then((fileData) => {
+        if (fileData) {
+          setModelData(fileData)
+        }
+      })
+    }
+  }, [])
 
   return (
     <div className="flex h-screen bg-secondary">

@@ -1,0 +1,19 @@
+
+=== MAIN PROCESS STARTING ===
+process.argv: [
+  'C:\\Users\\ROTOM-1\\Documents\\GitHub\\three-d-model-pics\\release\\win-unpacked\\3D Model Viewer.exe',
+  'C:\\Users\\ROTOM-1\\Documents\\GitHub\\three-d-model-pics\\test.3mf'
+]
+=== APP READY ===
+getFilePathFromArgs called, argv: [
+  'C:\\Users\\ROTOM-1\\Documents\\GitHub\\three-d-model-pics\\release\\win-unpacked\\3D Model Viewer.exe',
+  'C:\\Users\\ROTOM-1\\Documents\\GitHub\\three-d-model-pics\\test.3mf'
+]
+Filtered args: [
+  'C:\\Users\\ROTOM-1\\Documents\\GitHub\\three-d-model-pics\\test.3mf'
+]
+Checking arg: C:\Users\ROTOM-1\Documents\GitHub\three-d-model-pics\test.3mf exists: true
+Ext: 3mf
+Initial file path: C:\Users\ROTOM-1\Documents\GitHub\three-d-model-pics\test.3mf
+=== IPC HANDLERS REGISTERED ===
+=== Window loaded, sending initial file ===

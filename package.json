@@ -55,19 +55,8 @@
     ],
     "win": {
       "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64"]
-        },
-        {
-          "target": "portable",
-          "arch": ["x64"]
-        }
+        "dir"
       ]
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
     },
     "mac": {
       "target": [
@@ -81,6 +70,8 @@
       ],
       "category": "Graphics"
     },
-    "publish": null
+    "publish": null,
+    "electronDist": "node_modules/electron/dist",
+    "electronVersion": "33.4.11"
   }
 }

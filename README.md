@@ -2,7 +2,6 @@
 
 A cross-platform desktop application for viewing 3D models and exporting them as images with automatic shadows and lighting.
 
-![3D Model Viewer
 
 ## Features
 
@@ -324,10 +323,6 @@ After building, executables are located in:
 - Windows: `release/win-unpacked/` (or use the installer from GitHub Releases)
 
 > **Note**: Building for macOS requires running on macOS, and building for Linux requires running on Linux. Use GitHub Actions or a CI/CD pipeline for cross-platform builds.
-
-## License
-
-MIT License
 
 ## Acknowledgments
 
